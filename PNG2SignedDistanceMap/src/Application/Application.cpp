@@ -18,12 +18,14 @@ void Application::Init()
 {
 	Window = new WindowObject();
 	Window->CreateConsole();
-	Window->SetConsoleTitle("PNG2SignedDistanceMap by Haydn Trigg 2014");
+	Window->SetConsoleTitle("PNG2SignedDistanceMap");
 
 	// Welcome Message
 	Console::Out << (Console::Colors::ConsoleColor)(Console::Colors::CMD_LIGHTBLUEMAJOR + Console::Colors::CMD_WHITEMINOR) <<
-		"PNG2SignedDistanceMap v1.0.1 written by Haydn Trigg\n" << Console::Colors::Text <<
+		"PNG2SignedDistanceMap v1.0.2 written by Haydn Trigg\n" << Console::Colors::Text <<
 		"Please input filename: ";
+
+	// :: Source File ::
 	string filename;
 	bool file_exists = false;
 	std::cin >> filename;
@@ -39,6 +41,7 @@ void Application::Init()
 		}
 	}
 
+	// :: Kernel Size ::
 	Console::Out << "Input Kernel Size: ";
 	int kernel_size = 0;
 	string kernel_string;
@@ -60,25 +63,20 @@ void Application::Init()
 			}
 		}
 
-
-
-
 		if (kernel_size > 0)
 		{
 			Console::Out << Console::Colors::Success << "Kernel Size " << "[" << kernel_size << "]\n";
 			break;
 		}
-		else
-		{
-			Console::Out << Console::Colors::Error << "Kernel Size must be greater than zero!\n" << "Please input Kernel Size: ";
-		}
+		else Console::Out << Console::Colors::Error << "Kernel Size must be greater than zero!\n" << "Please input Kernel Size: ";
 	}
 
+	// :: Output File ::
 	string out_filename;
 	bool out_filename_created = false;
 	while (!out_filename_created)
 	{
-		Console::Out << "Input Output Filename: ";
+		Console::Out << "Output Filename: ";
 		std::cin >> out_filename;
 		if (filename == "q") exit(0);
 		else file_exists = FileHelper::FileExists(out_filename);
@@ -94,29 +92,32 @@ void Application::Init()
 	}
 	Console::Out << Console::Colors::Success << "File Output Name:" << "[" << out_filename << "]\n";
 
-
-
-
-
+	unsigned long long start_time = GetTickCount64();
 
 	picopng::PNG png(filename);
 	float searchDistance = (float)kernel_size;
 
-	if (png.Width > 0 && png.Height > 0 && png.Data.size() > 0)
+	if (png.Width > 0 && png.Height > 0 && png.Data.size() > 0) // Ensure PNG file is ok
 	{
 		size_t png_data_size = png.Data.size();
 
+		// Create an array to store the pixel distance data
 		std::vector<float> distance_data;
 		distance_data.resize(png_data_size / 4);
 
+		// Log the initial progress.
+		string str_out = string("Completed: ") + std::to_string(0) + "/" + std::to_string(png.Width) + "\n";
+		Console::Out << str_out;
 
-		float init = (float)sqrt((double)(png.Width*png.Width + png.Height*png.Height));
+		// Record start time
+		unsigned long long last_time = GetTickCount64();
+
+		// Loop Variables
+		float delta = 0;
+		unsigned char data = 0;
+		float init = (float)sqrt((double)(png.Width*png.Width + png.Height*png.Height)); // Maximum possible distance
 		float max = 0.0f;
 		const float min = 0.0f;
-		Console::Out << "Completed: " << 0 << "/" << png.Width << "\n";
-		unsigned long long last_time = GetTickCount64();
-		float delta = 0;
-
 
 		for (unsigned int i = 0; i < png.Width; i++) //0
 		{
@@ -124,21 +125,23 @@ void Application::Init()
 			{
 				float *output = &distance_data[i + j * png.Width];
 				*output = init;
-				unsigned char data = png.Data[4 * (i + j * png.Width)]; // Get the Data
+				data = png.Data[4 * (i + j * png.Width)]; // Get the Data
 
-				if (data <= 0)
+				if (data <= 0) // Ensure the pixel isn't going to be of distance 0
 				{
-					for (unsigned int k = 0; k < png.Width; k++)
+					for (unsigned int k = 0; k < png.Width; k++) //2
 					{
-						for (unsigned int w = 0; w < png.Height; w++) //2 & 3
+						for (unsigned int w = 0; w < png.Height; w++) //3
 						{
-							unsigned char data = png.Data[4 * (k + w * png.Width)]; // Get the Data
+							data = png.Data[4 * (k + w * png.Width)]; // Get the Data
 							if (data > 0)
 							{
 								// Calculate distance and maintain maximum precision
+								// Calculate the distance squared
+								// NOTE: Leave as distance squared and use square root later to improve performance.
 								long long x_dist = (long long)i - k;
 								long long y_dist = (long long)j - w;
-								float distance = (float)sqrt((double)(x_dist*x_dist + y_dist*y_dist));
+								float distance = (float)(x_dist*x_dist + y_dist*y_dist);
 
 								if (distance < *output) *output = distance;
 								if (distance > max) max = distance;
@@ -153,29 +156,31 @@ void Application::Init()
 				else *output = 0;
 			}
 
-			unsigned long long current_time = GetTickCount64();
-			unsigned long long delta_time = current_time - last_time;
-			last_time = current_time;
-			float f_delta_time = (float)((double)delta_time / 1000);
-			float more_ticks = (float)(png.Width - i);
-			if (i == 0) delta = f_delta_time;
-			delta = (delta * 2 + f_delta_time) / 3.0f;
-			float remaning_time = delta * more_ticks;
+			// :: Calculate the remaning time and log progress to console ::
+			{
+				unsigned long long current_time = GetTickCount64();
+				unsigned long long delta_time = current_time - last_time;
+				last_time = current_time;
+				float f_delta_time = (float)((double)delta_time / 1000);
+				float more_ticks = (float)(png.Width - i);
+				if (i == 0) delta = f_delta_time;
+				delta = (delta * 2 + f_delta_time) / 3.0f;
+				float remaning_time = delta * more_ticks;
 
-			Console::Clear();
-			Console::Out << "Completed: " << i + 1 << "/" << png.Width << "Remaning: " << (int)remaning_time << "secs \n";
+				str_out = string("Completed: ") + std::to_string(i + 1) + "/" + std::to_string(png.Width) + " Remaning: " + std::to_string(remaning_time) + "s\n";
+				Console::Out << str_out;
+			}
 		}
 
-		FileHelper::FreeVector(png.Data);
+		FileHelper::FreeVector(png.Data); // Free the PNG Source Data. It will no longer be used.
 
 		// : Convert data into 0-1 byte data :
-		float divisor = max - min;
 		std::vector<unsigned char> texture_data;
 		texture_data.resize(png_data_size / 4);
 
 		for (unsigned int i = 0; i < png.Width; i++) for (unsigned int j = 0; j < png.Height; j++)
 		{
-			float value = distance_data[i + j*png.Width];
+			float value = sqrtf(distance_data[i + j*png.Width]);
 
 			// Clamp distance to -/+ 
 			value = Math::Clamp(value, -searchDistance, +searchDistance);
@@ -186,9 +191,9 @@ void Application::Init()
 			texture_data[i + (png.Height - j - 1)*png.Width] = (unsigned char)(value*255.0f);
 		}
 
-		FileHelper::FreeVector(distance_data);
+		FileHelper::FreeVector(distance_data); // Free the Distance Data. It will no longer be used.
 
-		// : Create Bitmap Pixel Data
+		// : Create Minochrome Bitmap Pixel Data
 		std::vector<Pixel> bmp_data;
 		bmp_data.resize(texture_data.size());
 		for (unsigned int i = 0; i < png.Width; i++) for (unsigned int j = 0; j < png.Height; j++)
@@ -199,17 +204,26 @@ void Application::Init()
 			bmp_data[i + j*png.Width].b = data;
 		}
 
-		FileHelper::FreeVector(texture_data);
+		FileHelper::FreeVector(texture_data); // Free the Texture Data. It will no longer be used.
 
-
+		// Try and save the Bitmap and log the result.
 		if (SaveBMP((unsigned char*)(&bmp_data[0]), bmp_data.size() * 3, png.Width, png.Height, (char*)out_filename.c_str()))
 		{
-			Console::Out << Console::Colors::Success << "Process Complete: " << "Saved to " << "[" << out_filename << "]\n";
+			// Process completed sucessfully. Calculate time and display to console.
+			unsigned long long time = GetTickCount64() - start_time;
+			float ftime = (float)((double)time / 1000);
+			Console::Out << Console::Colors::Success << "Process Complete: t["<< ftime <<"]" << "Saved to " << "[" << out_filename << "]\n";
 		}
-		else Console::Out << Console::Colors::Error << "Process Failed: " << "Could not save output file!\n";
+		// Something went wrong while trying to save the Bitmap File. Display an error message.
+		else Console::Out << Console::Colors::Error << "Process Failed: " << "Could not save output bitmap file!\n";
 
-		system("pause");
+		FileHelper::FreeVector(bmp_data); // Free the bitmap data so the application can idle with minimum memory usage.
+
 	}
+	// Something went wrong while trying to load the PNG File. Display an error message.
+	else Console::Out << Console::Colors::Error << "Process Failed: " << "Bad PNG import!\n";
+
+	system("pause"); // Wait for the user to exit the application.
 }
 
 bool Application::SaveBMP(unsigned char* data, DWORD data_size, int width, int height, char* filepath)
