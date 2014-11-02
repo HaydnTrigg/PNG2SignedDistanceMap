@@ -30,3 +30,8 @@ If you have extremely large textures, try to split them up into smaller source i
 little overlap and them stitch them back together, this will let you use more cores. (Maybe this
 will become an internal feature of the application...)
 Be careful, too big and you will be old and grey before you see the results for yourself.
+
+Quick Links
+---------
+* **Valve**: Signed Distance Field Fonts [PDF] - http://www.valvesoftware.com/publications/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf
+* **LibGDX**: Distance Field Fonts using LibGDX - https://github.com/libgdx/libgdx/wiki/Distance-field-fonts
