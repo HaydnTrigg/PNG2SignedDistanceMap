@@ -22,7 +22,7 @@ void Application::Init()
 
 	// Welcome Message
 	Console::Out << (Console::Colors::ConsoleColor)(Console::Colors::CMD_LIGHTBLUEMAJOR + Console::Colors::CMD_WHITEMINOR) <<
-		"PNG2SignedDistanceMap v1.0 written by Haydn Trigg\n" << Console::Colors::Text <<
+		"PNG2SignedDistanceMap v1.0.1 written by Haydn Trigg\n" << Console::Colors::Text <<
 		"Please input filename: ";
 	string filename;
 	bool file_exists = false;
@@ -136,8 +136,8 @@ void Application::Init()
 							if (data > 0)
 							{
 								// Calculate distance and maintain maximum precision
-								long long x_dist = i - k;
-								long long y_dist = j - w;
+								long long x_dist = (long long)i - k;
+								long long y_dist = (long long)j - w;
 								float distance = (float)sqrt((double)(x_dist*x_dist + y_dist*y_dist));
 
 								if (distance < *output) *output = distance;
